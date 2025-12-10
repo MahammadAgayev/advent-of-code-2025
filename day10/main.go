@@ -1,0 +1,240 @@
+package day10
+
+import (
+	"fmt"
+	"reflect"
+	"strconv"
+
+	"github.com/MahammadAgayev/advent-of-code2025/common"
+)
+
+type Machine struct {
+	lights []bool
+	wires []wire
+}
+
+type wire []int
+
+func (m *Machine) newWire() {
+	wire := make([]int, 0, 1)
+	m.wires = append(m.wires, wire)
+}
+
+func (m *Machine) addWire(num int) {
+	wire := m.wires[len(m.wires)-1]
+	wire = append(wire, num)
+	m.wires[len(m.wires) -1] = wire
+}
+
+func (m *Machine) print() {
+	for _, sg := range m.lights {
+		fmt.Printf("%v,", sg)
+	}
+
+	fmt.Println("\nwires...")
+	for _, bt := range m.wires {
+		fmt.Println(bt)
+	}
+}
+
+type state struct {
+	lights []bool
+	wireId int
+	depth int
+}
+
+type q struct {
+	arr []state
+}
+
+func newq() q {
+	return q {
+		arr:  make([]state, 0, 32),
+	}
+}
+
+func (q *q) enq(a state)  {
+	q.arr = append(q.arr, a)
+}
+
+func (q *q) deq() (bool, state) {
+	if len(q.arr) == 0 {
+		return true, state{}
+	}
+	a := q.arr[0]
+	q.arr = q.arr[1:]
+
+	return false, a
+}
+
+
+const (
+	lightStart = '['
+	lightStop = ']'
+
+	wireStart = '('
+	wireStop = ')'
+
+)
+
+func Main() error {
+	/*
+      - Oke, how we are detecting right combination ??
+      - Let's start simple , if i have [#] (0) i press works. the issue is i can press button multiple times, so consider that i'm pushing 0.
+      - We can think of this as a maze problem and presses as path. Actually each press has two states, so pressing multiple times doesn't matter, starting from the each press there's branching from each state onward generating a big tree a bruuuuutallll force.
+      - Let's try this first,
+
+      -- Sample input:
+            [.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}
+	*/
+
+	machines, err := readInput()
+
+	if err != nil {
+		return err
+	}
+
+	sum := 0
+
+	for _, m := range machines {
+		sum += howManyWires(m)
+	}
+
+	fmt.Println("Part 1: %d", sum)
+
+	return nil
+}
+
+func howManyWires(m *Machine) int {
+	min_ := 99999999
+	for i := range m.wires {
+		ln := bfs(m, i)
+		if ln < min_ {
+			min_ = ln
+		}
+	}
+
+	return min_
+}
+
+func readInput() ([]*Machine, error) {
+	scanner := common.ReadScanner()
+	machines := make([]*Machine, 0)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		m, err := parseLine(line)
+
+		if err != nil {
+			return nil, err
+		}
+
+		machines = append(machines, m)
+	}
+
+	return machines, nil
+}
+
+
+func parseLine(line string) (*Machine, error) {
+	machine := &Machine{
+		lights: make([]bool, 0, 1),
+		wires: make([]wire, 0),
+	}
+
+	lightParse := false
+	wireParse := false
+
+	for _, ch := range line {
+		switch ch {
+		case lightStart:
+			lightParse = true
+			continue
+		case lightStop:
+			lightParse = false
+			continue
+		case wireStart:
+			machine.newWire()
+			wireParse = true
+			continue
+		case wireStop:
+			wireParse = false
+			continue
+		case ',':
+		    continue
+		}
+
+		if lightParse {
+		   lightOn := false
+		   if ch == '#' {
+		       lightOn = true
+		   }
+		   machine.lights = append(machine.lights, lightOn)
+		}
+
+		if wireParse {
+			num, err := strconv.Atoi(string(ch))
+
+			if err != nil {
+				return nil, err
+			}
+
+			machine.addWire(num)
+		}
+	}
+
+	return machine, nil
+}
+
+
+func bfs(m *Machine, wireId int) int {
+	q := newq()
+	startLights := make([]bool, len(m.lights))
+	q.enq(state{wireId: wireId, lights: startLights, depth: 1})
+
+	for true {
+		isEmpty, qVal := q.deq();
+
+		if isEmpty {
+			break
+		}
+
+		nextWireId := qVal.wireId
+		lights := qVal.lights
+
+
+		// fmt.Println("before pressing wire", m.wires[nextWireId], lights)
+		lights = press(lights, m.wires[nextWireId])
+		// fmt.Println("pressed wire", m.wires[nextWireId], lights)
+
+		if lightEqual(lights, m.lights) {
+			return qVal.depth
+		}
+
+		for i := range m.wires {
+			if i == nextWireId {
+				continue
+			}
+			newLights := make([]bool, len(m.lights))
+			copy(newLights, lights)
+			q.enq(state{wireId: i, lights: newLights, depth: qVal.depth+1})
+		}
+
+	}
+
+	return 9999999
+}
+
+
+// oke, we do a BFS, but since it's kinda
+func press(state []bool, wire wire) []bool {
+	for _, nm := range wire {
+		state[nm] = !state[nm]
+	}
+
+	return state
+}
+
+func lightEqual(light1 []bool, light2 []bool) bool {
+	return reflect.DeepEqual(light1, light2)
+}
