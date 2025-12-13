@@ -11,6 +11,7 @@ import (
 type Machine struct {
 	lights []bool
 	wires []wire
+	joltage []int
 }
 
 type wire []int
@@ -75,19 +76,11 @@ const (
 	wireStart = '('
 	wireStop = ')'
 
+	joltageStart = '{'
+	joltageStop = '}'
 )
 
 func Main() error {
-	/*
-      - Oke, how we are detecting right combination ??
-      - Let's start simple , if i have [#] (0) i press works. the issue is i can press button multiple times, so consider that i'm pushing 0.
-      - We can think of this as a maze problem and presses as path. Actually each press has two states, so pressing multiple times doesn't matter, starting from the each press there's branching from each state onward generating a big tree a bruuuuutallll force.
-      - Let's try this first,
-
-      -- Sample input:
-            [.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}
-	*/
-
 	machines, err := readInput()
 
 	if err != nil {
@@ -95,12 +88,10 @@ func Main() error {
 	}
 
 	sum := 0
-
 	for _, m := range machines {
 		sum += howManyWires(m)
 	}
-
-	fmt.Println("Part 1: %d", sum)
+	fmt.Printf("Part 1: %d\n", sum)
 
 	return nil
 }
@@ -140,10 +131,13 @@ func parseLine(line string) (*Machine, error) {
 	machine := &Machine{
 		lights: make([]bool, 0, 1),
 		wires: make([]wire, 0),
+		joltage: make([]int, 0),
 	}
 
 	lightParse := false
 	wireParse := false
+	joltageParse := false
+	numBuffer := ""
 
 	for _, ch := range line {
 		switch ch {
@@ -160,8 +154,32 @@ func parseLine(line string) (*Machine, error) {
 		case wireStop:
 			wireParse = false
 			continue
+		case joltageStart:
+			joltageParse = true
+			continue
+		case joltageStop:
+			if numBuffer != "" {
+				num, err := strconv.Atoi(numBuffer)
+				if err != nil {
+					return nil, err
+				}
+				machine.joltage = append(machine.joltage, num)
+				numBuffer = ""
+			}
+			joltageParse = false
+			continue
 		case ',':
+			if joltageParse && numBuffer != "" {
+				num, err := strconv.Atoi(numBuffer)
+				if err != nil {
+					return nil, err
+				}
+				machine.joltage = append(machine.joltage, num)
+				numBuffer = ""
+			}
 		    continue
+		case ' ':
+			continue
 		}
 
 		if lightParse {
@@ -180,6 +198,10 @@ func parseLine(line string) (*Machine, error) {
 			}
 
 			machine.addWire(num)
+		}
+
+		if joltageParse {
+			numBuffer += string(ch)
 		}
 	}
 

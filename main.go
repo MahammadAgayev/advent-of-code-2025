@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/MahammadAgayev/advent-of-code2025/day10"
+	"github.com/MahammadAgayev/advent-of-code2025/day11"
 )
 
 func main() {
@@ -10,7 +10,8 @@ func main() {
 	// err := day3.Main()
 	// err := day6.Main()
 	// err := day9.Main()
-	err := day10.Main()
+	// err := day10.Main()
+	err := day11.Main()
 
 	if err != nil {
 		panic(err)
